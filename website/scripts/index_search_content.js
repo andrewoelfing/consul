@@ -18,30 +18,34 @@ async function main() {
 
   // Grab all search-indexable content and format for Algolia
   const searchObjects = await Promise.all(
-    glob.sync(path.join(pagesFolder, '**/*.mdx')).map(async (fullPath) => {
-      const { content, data } = matter.read(fullPath)
+    glob
+      .sync(path.join(pagesFolder, '**/*.mdx'), {
+        ignore: path.join(pagesFolder, 'partials/**/*'),
+      })
+      .map(async (fullPath) => {
+        const { content, data } = matter.read(fullPath)
 
-      const searchableDimensions = SEARCH_DIMENSIONS.reduce(
-        (acc, dimension) => {
-          return { ...acc, [dimension]: data[dimension] }
-        },
-        {}
-      )
+        const searchableDimensions = SEARCH_DIMENSIONS.reduce(
+          (acc, dimension) => {
+            return { ...acc, [dimension]: data[dimension] }
+          },
+          {}
+        )
 
-      const headings = await collectHeadings(content)
+        const headings = await collectHeadings(content)
 
-      // Get path relative to `pages`
-      const __resourcePath = fullPath.replace(`${pagesFolder}/`, '')
+        // Get path relative to `pages`
+        const __resourcePath = fullPath.replace(`${pagesFolder}/`, '')
 
-      // Use clean URL for Algolia id
-      const objectID = __resourcePath.replace('.mdx', '')
+        // Use clean URL for Algolia id
+        const objectID = __resourcePath.replace('.mdx', '')
 
-      return {
-        ...searchableDimensions,
-        headings,
-        objectID,
-      }
-    })
+        return {
+          ...searchableDimensions,
+          headings,
+          objectID,
+        }
+      })
   )
 
   try {
