@@ -500,7 +500,7 @@ func (s *Store) GetNode(id string) (uint64, *structs.Node, error) {
 	return idx, node, nil
 }
 
-func getNodeTxn(tx *txn, nodeName string) (*structs.Node, error) {
+func getNodeTxn(tx ReadTxn, nodeName string) (*structs.Node, error) {
 	node, err := tx.First("nodes", "id", nodeName)
 	if err != nil {
 		return nil, fmt.Errorf("node lookup failed: %s", err)
@@ -511,7 +511,7 @@ func getNodeTxn(tx *txn, nodeName string) (*structs.Node, error) {
 	return nil, nil
 }
 
-func getNodeIDTxn(tx *txn, id types.NodeID) (*structs.Node, error) {
+func getNodeIDTxn(tx ReadTxn, id types.NodeID) (*structs.Node, error) {
 	strnode := string(id)
 	uuidValue, err := uuid.ParseUUID(strnode)
 	if err != nil {
@@ -870,7 +870,7 @@ func (s *Store) ServiceList(ws memdb.WatchSet, entMeta *structs.EnterpriseMeta) 
 	return serviceListTxn(tx, ws, entMeta)
 }
 
-func serviceListTxn(tx *txn, ws memdb.WatchSet, entMeta *structs.EnterpriseMeta) (uint64, structs.ServiceList, error) {
+func serviceListTxn(tx ReadTxn, ws memdb.WatchSet, entMeta *structs.EnterpriseMeta) (uint64, structs.ServiceList, error) {
 	idx := catalogServicesMaxIndex(tx, entMeta)
 
 	services, err := catalogServiceList(tx, entMeta, true)
@@ -974,7 +974,7 @@ func (s *Store) ServicesByNodeMeta(ws memdb.WatchSet, filters map[string]string,
 //   * return when the last instance of a service is removed
 //   * block until an instance for this service is available, or another
 //     service is unregistered.
-func maxIndexForService(tx *txn, serviceName string, serviceExists, checks bool, entMeta *structs.EnterpriseMeta) uint64 {
+func maxIndexForService(tx ReadTxn, serviceName string, serviceExists, checks bool, entMeta *structs.EnterpriseMeta) uint64 {
 	idx, _ := maxIndexAndWatchChForService(tx, serviceName, serviceExists, checks, entMeta)
 	return idx
 }
@@ -993,7 +993,7 @@ func maxIndexForService(tx *txn, serviceName string, serviceExists, checks bool,
 // returned for the chan. This allows for blocking watchers to _only_ watch this
 // one chan in the common case, falling back to watching all touched MemDB
 // indexes in more complicated cases.
-func maxIndexAndWatchChForService(tx *txn, serviceName string, serviceExists, checks bool, entMeta *structs.EnterpriseMeta) (uint64, <-chan struct{}) {
+func maxIndexAndWatchChForService(tx ReadTxn, serviceName string, serviceExists, checks bool, entMeta *structs.EnterpriseMeta) (uint64, <-chan struct{}) {
 	if !serviceExists {
 		res, err := catalogServiceLastExtinctionIndex(tx, entMeta)
 		if missingIdx, ok := res.(*IndexEntry); ok && err == nil {
@@ -1010,7 +1010,7 @@ func maxIndexAndWatchChForService(tx *txn, serviceName string, serviceExists, ch
 }
 
 // Wrapper for maxIndexAndWatchChForService that operates on a list of ServiceNodes
-func maxIndexAndWatchChsForServiceNodes(tx *txn,
+func maxIndexAndWatchChsForServiceNodes(tx ReadTxn,
 	nodes structs.ServiceNodes, watchChecks bool) (uint64, []<-chan struct{}) {
 
 	var watchChans []<-chan struct{}
@@ -1217,7 +1217,7 @@ func (s *Store) ServiceAddressNodes(ws memdb.WatchSet, address string, entMeta *
 
 // parseServiceNodes iterates over a services query and fills in the node details,
 // returning a ServiceNodes slice.
-func parseServiceNodes(tx *txn, ws memdb.WatchSet, services structs.ServiceNodes) (structs.ServiceNodes, error) {
+func parseServiceNodes(tx ReadTxn, ws memdb.WatchSet, services structs.ServiceNodes) (structs.ServiceNodes, error) {
 	// We don't want to track an unlimited number of nodes, so we pull a
 	// top-level watch to use as a fallback.
 	allNodes, err := tx.Get("nodes", "id")
@@ -1274,7 +1274,7 @@ func (s *Store) NodeService(nodeName string, serviceID string, entMeta *structs.
 	return idx, service, nil
 }
 
-func getNodeServiceTxn(tx *txn, nodeName, serviceID string, entMeta *structs.EnterpriseMeta) (*structs.NodeService, error) {
+func getNodeServiceTxn(tx ReadTxn, nodeName, serviceID string, entMeta *structs.EnterpriseMeta) (*structs.NodeService, error) {
 	// Query the service
 	_, service, err := firstWatchCompoundWithTxn(tx, "services", "id", entMeta, nodeName, serviceID)
 	if err != nil {
@@ -1705,7 +1705,7 @@ func (s *Store) NodeCheck(nodeName string, checkID types.CheckID, entMeta *struc
 
 // nodeCheckTxn is used as the inner method to handle reading a health check
 // from the state store.
-func getNodeCheckTxn(tx *txn, nodeName string, checkID types.CheckID, entMeta *structs.EnterpriseMeta) (uint64, *structs.HealthCheck, error) {
+func getNodeCheckTxn(tx ReadTxn, nodeName string, checkID types.CheckID, entMeta *structs.EnterpriseMeta) (uint64, *structs.HealthCheck, error) {
 	// Get the table index.
 	idx := catalogChecksMaxIndex(tx, entMeta)
 
@@ -1821,7 +1821,7 @@ func (s *Store) ChecksInStateByNodeMeta(ws memdb.WatchSet, state string, filters
 	return parseChecksByNodeMeta(tx, ws, idx, iter, filters)
 }
 
-func checksInStateTxn(tx *txn, ws memdb.WatchSet, state string, entMeta *structs.EnterpriseMeta) (uint64, memdb.ResultIterator, error) {
+func checksInStateTxn(tx ReadTxn, ws memdb.WatchSet, state string, entMeta *structs.EnterpriseMeta) (uint64, memdb.ResultIterator, error) {
 	// Get the table index.
 	idx := catalogChecksMaxIndex(tx, entMeta)
 
@@ -1843,7 +1843,7 @@ func checksInStateTxn(tx *txn, ws memdb.WatchSet, state string, entMeta *structs
 
 // parseChecksByNodeMeta is a helper function used to deduplicate some
 // repetitive code for returning health checks filtered by node metadata fields.
-func parseChecksByNodeMeta(tx *txn, ws memdb.WatchSet,
+func parseChecksByNodeMeta(tx ReadTxn, ws memdb.WatchSet,
 	idx uint64, iter memdb.ResultIterator, filters map[string]string) (uint64, structs.HealthChecks, error) {
 
 	// We don't want to track an unlimited number of nodes, so we pull a
@@ -2036,7 +2036,7 @@ func (s *Store) checkServiceNodes(ws memdb.WatchSet, serviceName string, connect
 	return checkServiceNodesTxn(tx, ws, serviceName, connect, entMeta)
 }
 
-func checkServiceNodesTxn(tx *txn, ws memdb.WatchSet, serviceName string, connect bool, entMeta *structs.EnterpriseMeta) (uint64, structs.CheckServiceNodes, error) {
+func checkServiceNodesTxn(tx ReadTxn, ws memdb.WatchSet, serviceName string, connect bool, entMeta *structs.EnterpriseMeta) (uint64, structs.CheckServiceNodes, error) {
 	// Function for lookup
 	index := "service"
 	if connect {
@@ -2225,7 +2225,7 @@ func (s *Store) GatewayServices(ws memdb.WatchSet, gateway string, entMeta *stru
 // and query for an associated node and a set of checks. This is the inner
 // method used to return a rich set of results from a more simple query.
 func parseCheckServiceNodes(
-	tx *txn, ws memdb.WatchSet, idx uint64,
+	tx ReadTxn, ws memdb.WatchSet, idx uint64,
 	services structs.ServiceNodes,
 	err error) (uint64, structs.CheckServiceNodes, error) {
 	if err != nil {
@@ -2350,7 +2350,7 @@ func (s *Store) ServiceDump(ws memdb.WatchSet, kind structs.ServiceKind, useKind
 	}
 }
 
-func serviceDumpAllTxn(tx *txn, ws memdb.WatchSet, entMeta *structs.EnterpriseMeta) (uint64, structs.CheckServiceNodes, error) {
+func serviceDumpAllTxn(tx ReadTxn, ws memdb.WatchSet, entMeta *structs.EnterpriseMeta) (uint64, structs.CheckServiceNodes, error) {
 	// Get the table index
 	idx := catalogMaxIndexWatch(tx, ws, entMeta, true)
 
@@ -2368,7 +2368,7 @@ func serviceDumpAllTxn(tx *txn, ws memdb.WatchSet, entMeta *structs.EnterpriseMe
 	return parseCheckServiceNodes(tx, nil, idx, results, err)
 }
 
-func serviceDumpKindTxn(tx *txn, ws memdb.WatchSet, kind structs.ServiceKind, entMeta *structs.EnterpriseMeta) (uint64, structs.CheckServiceNodes, error) {
+func serviceDumpKindTxn(tx ReadTxn, ws memdb.WatchSet, kind structs.ServiceKind, entMeta *structs.EnterpriseMeta) (uint64, structs.CheckServiceNodes, error) {
 	// unlike when we are dumping all services here we only need to watch the kind specific index entry for changing (or nodes, checks)
 	// updating any services, nodes or checks will bump the appropriate service kind index so there is no need to watch any of the individual
 	// entries
@@ -2392,7 +2392,7 @@ func serviceDumpKindTxn(tx *txn, ws memdb.WatchSet, kind structs.ServiceKind, en
 // parseNodes takes an iterator over a set of nodes and returns a struct
 // containing the nodes along with all of their associated services
 // and/or health checks.
-func parseNodes(tx *txn, ws memdb.WatchSet, idx uint64,
+func parseNodes(tx ReadTxn, ws memdb.WatchSet, idx uint64,
 	iter memdb.ResultIterator, entMeta *structs.EnterpriseMeta) (uint64, structs.NodeDump, error) {
 
 	// We don't want to track an unlimited number of services, so we pull a
@@ -2715,18 +2715,18 @@ func checkGatewayWildcardsAndUpdate(tx *txn, idx uint64, svc *structs.NodeServic
 
 // serviceGateways returns all GatewayService entries with the given service name. This effectively looks up
 // all the gateways mapped to this service.
-func serviceGateways(tx *txn, name string, entMeta *structs.EnterpriseMeta) (memdb.ResultIterator, error) {
+func serviceGateways(tx ReadTxn, name string, entMeta *structs.EnterpriseMeta) (memdb.ResultIterator, error) {
 	return tx.Get(gatewayServicesTableName, "service", structs.NewServiceName(name, entMeta))
 }
 
-func gatewayServices(tx *txn, name string, entMeta *structs.EnterpriseMeta) (memdb.ResultIterator, error) {
+func gatewayServices(tx ReadTxn, name string, entMeta *structs.EnterpriseMeta) (memdb.ResultIterator, error) {
 	return tx.Get(gatewayServicesTableName, "gateway", structs.NewServiceName(name, entMeta))
 }
 
 // TODO(ingress): How to handle index rolling back when a config entry is
 // deleted that references a service?
 // We might need something like the service_last_extinction index?
-func serviceGatewayNodes(tx *txn, ws memdb.WatchSet, service string, kind structs.ServiceKind, entMeta *structs.EnterpriseMeta) (uint64, structs.ServiceNodes, error) {
+func serviceGatewayNodes(tx ReadTxn, ws memdb.WatchSet, service string, kind structs.ServiceKind, entMeta *structs.EnterpriseMeta) (uint64, structs.ServiceNodes, error) {
 	// Look up gateway name associated with the service
 	gws, err := serviceGateways(tx, service, entMeta)
 	if err != nil {

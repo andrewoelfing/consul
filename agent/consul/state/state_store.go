@@ -122,7 +122,7 @@ type Store struct {
 // works by starting a read transaction against the whole state store.
 type Snapshot struct {
 	store     *Store
-	tx        *txn
+	tx        AbortTxn
 	lastIndex uint64
 }
 

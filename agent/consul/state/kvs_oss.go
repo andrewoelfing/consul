@@ -33,7 +33,7 @@ func insertKVTxn(tx *txn, entry *structs.DirEntry, updateMax bool) error {
 	return nil
 }
 
-func kvsListEntriesTxn(tx *txn, ws memdb.WatchSet, prefix string, entMeta *structs.EnterpriseMeta) (uint64, structs.DirEntries, error) {
+func kvsListEntriesTxn(tx ReadTxn, ws memdb.WatchSet, prefix string, entMeta *structs.EnterpriseMeta) (uint64, structs.DirEntries, error) {
 	var ents structs.DirEntries
 	var lindex uint64
 
@@ -77,7 +77,7 @@ func (s *Store) kvsDeleteTreeTxn(tx *txn, idx uint64, prefix string, entMeta *st
 	return nil
 }
 
-func kvsMaxIndex(tx *txn, entMeta *structs.EnterpriseMeta) uint64 {
+func kvsMaxIndex(tx ReadTxn, entMeta *structs.EnterpriseMeta) uint64 {
 	return maxIndexTxn(tx, "kvs", "tombstones")
 }
 

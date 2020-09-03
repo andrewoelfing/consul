@@ -84,7 +84,7 @@ func allNodeSessionsTxn(tx *txn, node string) (structs.Sessions, error) {
 	return nodeSessionsTxn(tx, nil, node, nil)
 }
 
-func nodeSessionsTxn(tx *txn,
+func nodeSessionsTxn(tx ReadTxn,
 	ws memdb.WatchSet, node string, entMeta *structs.EnterpriseMeta) (structs.Sessions, error) {
 
 	sessions, err := tx.Get("sessions", "node", node)
@@ -100,7 +100,7 @@ func nodeSessionsTxn(tx *txn,
 	return result, nil
 }
 
-func sessionMaxIndex(tx *txn, entMeta *structs.EnterpriseMeta) uint64 {
+func sessionMaxIndex(tx ReadTxn, entMeta *structs.EnterpriseMeta) uint64 {
 	return maxIndexTxn(tx, "sessions")
 }
 

@@ -170,7 +170,7 @@ func (s *Store) KVSGet(ws memdb.WatchSet, key string, entMeta *structs.Enterpris
 
 // kvsGetTxn is the inner method that gets a KVS entry inside an existing
 // transaction.
-func kvsGetTxn(tx *txn,
+func kvsGetTxn(tx ReadTxn,
 	ws memdb.WatchSet, key string, entMeta *structs.EnterpriseMeta) (uint64, *structs.DirEntry, error) {
 
 	// Get the table index.
@@ -203,7 +203,7 @@ func (s *Store) KVSList(ws memdb.WatchSet,
 
 // kvsListTxn is the inner method that gets a list of KVS entries matching a
 // prefix.
-func (s *Store) kvsListTxn(tx *txn,
+func (s *Store) kvsListTxn(tx ReadTxn,
 	ws memdb.WatchSet, prefix string, entMeta *structs.EnterpriseMeta) (uint64, structs.DirEntries, error) {
 
 	// Get the table indexes.
