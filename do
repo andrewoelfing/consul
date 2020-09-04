@@ -34,7 +34,7 @@ go-mod-tidy() {
     (cd api && go mod tidy)
 }
 
-help[update-vendor]="Update ./vendor after making changing dependencies."
+help[go-mod-vendor]="Update vendor directory after changing dependencies."
 go-mod-vendor() {
     go-mod-tidy
     echo "Running go mod vendor"
