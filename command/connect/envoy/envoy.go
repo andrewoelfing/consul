@@ -293,6 +293,13 @@ func (c *cmd) run(args []string) int {
 		wanAddr := c.wanAddress.Value()
 		if wanAddr.Address != "" {
 			taggedAddrs[structs.TaggedAddressWAN] = wanAddr
+
+			serviceIP := net.ParseIP(wanAddr.Address)
+			if serviceIP != nil && serviceIP.To4() != nil {
+				taggedAddrs[structs.TaggedAddressWANIPv4] = wanAddr
+			} else if serviceIP != nil && serviceIP.To4() == nil {
+				taggedAddrs[structs.TaggedAddressWANIPv6] = wanAddr
+			}
 		}
 
 		tcpCheckAddr := lanAddr.Address
